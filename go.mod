@@ -1,3 +1,3 @@
-module hello_world
+module ccwc
 
 go 1.21.5

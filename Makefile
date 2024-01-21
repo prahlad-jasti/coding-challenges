@@ -13,7 +13,7 @@ vet: fmt
 # Target for building Go code
 .PHONY: build
 build: vet
-	go build
+	go build -o ccwc
 
 .PHONY: clean
 clean: 
