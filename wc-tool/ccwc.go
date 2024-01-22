@@ -2,12 +2,12 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"unicode"
-	"flag"
-	"log"
 )
 
 type FileStats struct {
