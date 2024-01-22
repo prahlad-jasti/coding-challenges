@@ -2,70 +2,63 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
-	"strings"
+	"unicode"
+	"flag"
+	"log"
 )
 
-func fileSize(fileName string) (int, error) {
-	f, err := os.Open(fileName)
+type FileStats struct {
+	ByteCount      int
+	CharacterCount int
+	LineCount      int
+	WordCount      int
+}
+
+func calculateFileStats(fileName string) (FileStats, error) {
+	file, err := os.Open(fileName)
 	if err != nil {
-		return 0, err
+		return FileStats{}, err
 	}
-	defer f.Close()
-	var total int
-	data := make([]byte, 2048)
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+	var stats FileStats
+	var inWord bool
+
 	for {
-		count, err := f.Read(data)
-		total += count
+		r, size, err := reader.ReadRune()
 		if err != nil {
 			if err != io.EOF {
-				return 0, err
+				return FileStats{}, err
 			}
 			break
 		}
-	}
-	return total, nil
-}
 
-func fileLines(fileName string) (int, int, error) {
-	f, err := os.Open(fileName)
-	if err != nil {
-		return 0, 0, err
-	}
-	fileScanner := bufio.NewScanner(f)
-	defer f.Close()
-	var numLines int
-	var numWords int
-	fileScanner.Split(bufio.ScanLines)
-	for fileScanner.Scan() {
-		numLines += 1
-		line := fileScanner.Text()
-		numWords += len(strings.Fields(line))
-	}
-	return numLines, numWords, nil
-}
+		stats.ByteCount += size
+		stats.CharacterCount++
 
-func countCharacters(fileName string) (int, error) {
-	file, err := os.Open(fileName)
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-	reader := bufio.NewReader(file)
-	charCount := 0
-	for {
-		_, _, err := reader.ReadRune()
-		if err != nil {
-			break
+		if r == '\n' {
+			stats.LineCount++
 		}
-		charCount += 1
+
+		if unicode.IsSpace(r) {
+			inWord = false
+		} else {
+			if !inWord {
+				stats.WordCount++
+			}
+			inWord = true
+		}
 	}
 
-	return charCount, nil
+	if inWord {
+		stats.WordCount++
+	}
+
+	return stats, nil
 }
 
 func main() {
@@ -85,33 +78,25 @@ func main() {
 	}
 	fileName := os.Args[len(os.Args)-1]
 	res := ""
+	stats, err := calculateFileStats(fileName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if printC || printAll {
-		size, errSize := fileSize(fileName)
-		if errSize != nil {
-			log.Fatal(errSize)
-		}
-		res += fmt.Sprintf("%8d", size)
+		res += fmt.Sprintf("%8d", stats.ByteCount)
+	}
+
+	if printW || printAll {
+		res += fmt.Sprintf("%8d", stats.WordCount)
+	}
+
+	if printL || printAll {
+		res += fmt.Sprintf("%8d", stats.LineCount)
 	}
 
 	if printM {
-		chars, errChars := countCharacters(fileName)
-		if errChars != nil {
-			log.Fatal(errChars)
-		}
-		res += fmt.Sprintf("%8d", chars)
-	}
-
-	if printW || printL || printAll {
-		lines, words, errLines := fileLines(fileName)
-		if errLines != nil {
-			log.Fatal(errLines)
-		}
-		if printW || printAll {
-			res += fmt.Sprintf("%8d", words)
-		}
-		if printL || printAll {
-			res += fmt.Sprintf("%8d", lines)
-		}
+		res += fmt.Sprintf("%8d", stats.CharacterCount)
 	}
 	res += fmt.Sprintf("%16s", fileName)
 	fmt.Print(res)
